@@ -1,0 +1,23 @@
+{
+  "ingested_at": "2026-10-25T16:08:54.567890+00:00",
+  "analysis_start": "2026-01-01",
+  "analysis_end": "2026-01-31",
+  "expected_half_hourly_intervals": 1488,
+  "actual_intervals_fetched": 1488,
+  "forecast_records_fetched": 19272,
+  "actuals_parquet": "C:\\Users\\naren\\OneDrive\\Desktop\\GRIDBRICKS\\data\\processed\\actuals.parquet",
+  "forecasts_parquet": "C:\\Users\\naren\\OneDrive\\Desktop\\GRIDBRICKS\\data\\processed\\forecasts.parquet",
+  "demo_mode": false,
+  "note_temporal_resolution": "FUELHH actuals are half-hourly; WINDFOR forecasts are hourly. Each actual interval is matched to the forecast for the containing hour (actual startTime floored to nearest hour).",
+  "cutoff_policy": {
+    "hour": 10,
+    "minute": 0,
+    "timezone": "Europe/London",
+    "day_offset": 1,
+    "description": "Provisional default: 10:00 Europe/London on the day 1 day(s) before delivery. NOT an official UK electricity market rule."
+  },
+  "sources": {
+    "actuals": "Elexon BMRS FUELHH (fuelType=WIND)",
+    "forecasts": "Elexon BMRS WINDFOR"
+  }
+}

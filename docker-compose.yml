@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gridbricks-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist ingested data between container restarts
+      - ./data:/data
+    environment:
+      - DATA_DIR=/data
+      - DEMO_MODE=${DEMO_MODE:-false}
+      - ANALYSIS_START_DATE=${ANALYSIS_START_DATE:-2026-01-01}
+      - ANALYSIS_END_DATE=${ANALYSIS_END_DATE:-2026-01-31}
+      - CUTOFF_HOUR=${CUTOFF_HOUR:-10}
+      - CUTOFF_MINUTE=${CUTOFF_MINUTE:-0}
+      - CUTOFF_TIMEZONE=${CUTOFF_TIMEZONE:-Europe/London}
+      - CUTOFF_DAY_OFFSET=${CUTOFF_DAY_OFFSET:-1}
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:80,http://frontend:80
+      - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-300}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:8000
+    container_name: gridbricks-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # One-shot ingestion service: run `docker compose run --rm ingest` to download data
+  ingest:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gridbricks-ingest
+    volumes:
+      - ./data:/data
+    environment:
+      - DATA_DIR=/data
+      - ANALYSIS_START_DATE=${ANALYSIS_START_DATE:-2026-01-01}
+      - ANALYSIS_END_DATE=${ANALYSIS_END_DATE:-2026-01-31}
+      - DEMO_MODE=false
+    command: ["python", "-m", "app.services.ingestion", "--force"]
+    profiles:
+      - ingest
