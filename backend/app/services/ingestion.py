@@ -249,13 +249,37 @@ def _load_metadata() -> dict:
 
 def load_actuals() -> pd.DataFrame:
     if _ACTUALS_PARQUET.exists():
-        return pd.read_parquet(_ACTUALS_PARQUET)
+        try:
+            return pd.read_parquet(_ACTUALS_PARQUET)
+        except ImportError as exc:
+            logger.critical(
+                "CRITICAL: Failed to read actuals from %s: missing Parquet engine ('pyarrow' or 'fastparquet'). "
+                "Ensure pyarrow>=14.0.0 is installed. Error: %s",
+                _ACTUALS_PARQUET, exc
+            )
+            raise
+        except Exception as exc:
+            logger.error("Failed to read actuals Parquet from %s: %s", _ACTUALS_PARQUET, exc)
+            raise
+    logger.warning("Actuals Parquet file not found at %s. Returning empty DataFrame.", _ACTUALS_PARQUET)
     return pd.DataFrame(columns=["start_time", "actual_mw"])
 
 
 def load_forecasts() -> pd.DataFrame:
     if _FORECASTS_PARQUET.exists():
-        return pd.read_parquet(_FORECASTS_PARQUET)
+        try:
+            return pd.read_parquet(_FORECASTS_PARQUET)
+        except ImportError as exc:
+            logger.critical(
+                "CRITICAL: Failed to read forecasts from %s: missing Parquet engine ('pyarrow' or 'fastparquet'). "
+                "Ensure pyarrow>=14.0.0 is installed. Error: %s",
+                _FORECASTS_PARQUET, exc
+            )
+            raise
+        except Exception as exc:
+            logger.error("Failed to read forecasts Parquet from %s: %s", _FORECASTS_PARQUET, exc)
+            raise
+    logger.warning("Forecasts Parquet file not found at %s. Returning empty DataFrame.", _FORECASTS_PARQUET)
     return pd.DataFrame(columns=["start_time", "publish_time", "forecast_mw"])
 
 

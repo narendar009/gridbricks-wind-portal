@@ -10,14 +10,61 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # ── Data directories ─────────────────────────────────────────────────────────
-BASE_DIR = Path(__file__).resolve().parents[3]
-DATA_DIR = Path(os.getenv("DATA_DIR", str(BASE_DIR / "data")))
+def _resolve_data_dir() -> Path:
+    """
+    Resolve the data directory by checking candidate locations in priority order.
+    Ensures data is located whether running in Docker, Render Native Python,
+    local development, or CI environments.
+    """
+    candidates = []
+    env_dir = os.getenv("DATA_DIR")
+    if env_dir:
+        candidates.append(Path(env_dir))
+
+    # Container mount standard
+    candidates.append(Path("/data"))
+
+    # Relative to backend/app/core (backend/data)
+    backend_data = Path(__file__).resolve().parents[2] / "data"
+    candidates.append(backend_data)
+
+    # Relative to workspace root (root data)
+    root_data = Path(__file__).resolve().parents[3] / "data"
+    candidates.append(root_data)
+
+    # Relative to current working directory
+    candidates.append(Path.cwd() / "data")
+    candidates.append(Path.cwd().parent / "data")
+
+    # Priority 1: First candidate that has actuals.parquet
+    for candidate in candidates:
+        actuals = candidate / "processed" / "actuals.parquet"
+        if actuals.is_file():
+            return candidate
+
+    # Priority 2: First candidate that has processed/ directory
+    for candidate in candidates:
+        if (candidate / "processed").is_dir():
+            return candidate
+
+    # Fallback to configured or root default
+    return Path(env_dir) if env_dir else root_data
+
+
+DATA_DIR = _resolve_data_dir()
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 
-RAW_DIR.mkdir(parents=True, exist_ok=True)
-PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+except (PermissionError, OSError) as exc:
+    logger.warning("Could not create directories at %s: %s", DATA_DIR, exc)
 
 # ── Elexon API ────────────────────────────────────────────────────────────────
 ELEXON_BASE_URL = os.getenv(
@@ -46,7 +93,8 @@ CUTOFF_DAY_OFFSET = int(os.getenv("CUTOFF_DAY_OFFSET", "1"))
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 CORS_ORIGINS = os.getenv(
-    "CORS_ORIGINS", "http://localhost:5173,http://localhost:3000"
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://localhost:3000,https://gridbricks-wind-portal.vercel.app,*",
 ).split(",")
 
 # ── Caching ───────────────────────────────────────────────────────────────────

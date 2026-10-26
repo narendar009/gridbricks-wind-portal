@@ -5,7 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.115+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Build-Vite%206-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev)
-[![Pytest](https://img.shields.io/badge/Tests-77%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](https://pytest.org)
+[![Pytest](https://img.shields.io/badge/Tests-84%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](https://pytest.org)
 [![Docker](https://img.shields.io/badge/Containers-Docker%20Compose-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com)
 [![Data](https://img.shields.io/badge/Data-Elexon%20BMRS%20(FUELHH%20%2B%20WINDFOR)-FF6F00.svg)](https://data.elexon.co.uk)
 
@@ -254,8 +254,8 @@ backend/tests/test_forecast_selector.py::TestForecastVintageSelection::test_fore
 backend/tests/test_forecast_selector.py::TestForecastVintageSelection::test_latest_eligible_publication_wins PASSED
 backend/tests/test_forecast_selector.py::TestForecastVintageSelection::test_newer_ineligible_forecast_never_replaces_eligible PASSED
 backend/tests/test_forecast_selector.py::TestMetricsCalculations::test_wape_calculation PASSED
-... (77 tests total across test_forecast_selector.py, test_api.py, test_ingestion.py)
-============================== 77 passed in 8.7s ==============================
+... (84 tests total across test_forecast_selector.py, test_api.py, test_ingestion.py)
+============================== 84 passed in 7.2s ==============================
 ```
 
 ---

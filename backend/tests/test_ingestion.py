@@ -217,3 +217,50 @@ class TestDataQuality:
         assert report["actual_intervals_present"] == 0
         assert report["actual_coverage_pct"] == 0.0
         assert report["missing_actual_intervals"] == 1488
+
+
+# ==============================================================================
+# Parquet loading and dependency validation
+# ==============================================================================
+
+class TestParquetLoading:
+    def test_parquet_engine_installed(self):
+        """Verify that pyarrow or fastparquet is installed in the test environment."""
+        import pyarrow
+        assert pyarrow.__version__ is not None
+
+    def test_load_actuals_bundled_file(self):
+        """Bundled actuals Parquet is readable and has expected columns."""
+        from app.services.ingestion import load_actuals
+        df = load_actuals()
+        assert not df.empty
+        assert "start_time" in df.columns
+        assert "actual_mw" in df.columns
+        assert len(df) > 0
+
+    def test_load_forecasts_bundled_file(self):
+        """Bundled forecasts Parquet is readable and has expected columns."""
+        from app.services.ingestion import load_forecasts
+        df = load_forecasts()
+        assert not df.empty
+        assert "start_time" in df.columns
+        assert "publish_time" in df.columns
+        assert "forecast_mw" in df.columns
+        assert len(df) > 0
+
+    def test_load_actuals_when_file_missing(self, monkeypatch, tmp_path):
+        """When actuals parquet is missing, load_actuals returns empty df without raising."""
+        import app.services.ingestion as ing
+        monkeypatch.setattr(ing, "_ACTUALS_PARQUET", tmp_path / "nonexistent.parquet")
+        df = ing.load_actuals()
+        assert df.empty
+        assert list(df.columns) == ["start_time", "actual_mw"]
+
+    def test_load_forecasts_when_file_missing(self, monkeypatch, tmp_path):
+        """When forecasts parquet is missing, load_forecasts returns empty df without raising."""
+        import app.services.ingestion as ing
+        monkeypatch.setattr(ing, "_FORECASTS_PARQUET", tmp_path / "nonexistent.parquet")
+        df = ing.load_forecasts()
+        assert df.empty
+        assert list(df.columns) == ["start_time", "publish_time", "forecast_mw"]
+

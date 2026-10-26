@@ -82,6 +82,9 @@ def _load() -> None:
             _cache["loaded_at"] = time.monotonic()
             _cache["demo_mode"] = meta.get("demo_mode", DEMO_MODE)
         logger.info("Cache loaded: %d matched intervals.", len(matched))
+    except Exception as exc:
+        logger.critical("Failed to load application data cache: %s", exc, exc_info=True)
+        raise
     finally:
         with _lock:
             _loading = False

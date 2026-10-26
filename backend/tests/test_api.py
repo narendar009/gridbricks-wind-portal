@@ -271,3 +271,34 @@ class TestInvalidRequests:
         assert resp.status_code == 200
         data = resp.json()
         assert "product" in data
+
+
+# ==============================================================================
+# CORS and Error Handling
+# ==============================================================================
+
+class TestCorsAndErrorHandling:
+    def test_cors_headers_on_success(self):
+        """Successful responses include CORS headers for production Vercel origin."""
+        resp = client.get("/api/health", headers={"Origin": "https://gridbricks-wind-portal.vercel.app"})
+        assert resp.status_code == 200
+        assert "access-control-allow-origin" in resp.headers
+        assert resp.headers["access-control-allow-origin"] in ("*", "https://gridbricks-wind-portal.vercel.app")
+
+    def test_cors_headers_on_error_response(self):
+        """500 error responses handled by global exception handler include CORS headers."""
+        from app.main import app
+        from starlette.testclient import TestClient
+        
+        @app.get("/api/test-faulty-endpoint")
+        def faulty():
+            raise RuntimeError("Simulated crash for testing CORS on 500")
+
+        client_no_raise = TestClient(app, raise_server_exceptions=False)
+        resp = client_no_raise.get("/api/test-faulty-endpoint", headers={"Origin": "https://gridbricks-wind-portal.vercel.app"})
+        assert resp.status_code == 500
+        assert "access-control-allow-origin" in resp.headers
+        data = resp.json()
+        assert data["detail"] == "Internal Server Error"
+        assert "error_type" in data
+
