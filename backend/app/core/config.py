@@ -3,6 +3,7 @@ Application configuration loaded from environment variables.
 All defaults are documented clearly; none are official UK market rules.
 """
 import os
+from datetime import date, datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -54,3 +55,22 @@ CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "300"))
 # ── Demo mode ─────────────────────────────────────────────────────────────────
 # Set DEMO_MODE=true to serve synthetic fixture data when real data is absent.
 DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+
+# ── Derived: half-hourly intervals per day ────────────────────────────────────
+INTERVALS_PER_DAY = 48  # UK settlement periods per day (30-minute intervals)
+
+
+def compute_expected_intervals(start_date_str: str | None = None,
+                               end_date_str: str | None = None) -> int:
+    """
+    Compute the expected number of half-hourly intervals for the analysis period.
+
+    Derives from configuration rather than hardcoding, so any date range change
+    automatically adjusts the denominator used for coverage calculations.
+    """
+    start_str = start_date_str or ANALYSIS_START_DATE
+    end_str = end_date_str or ANALYSIS_END_DATE
+    start = datetime.strptime(start_str, "%Y-%m-%d").date()
+    end = datetime.strptime(end_str, "%Y-%m-%d").date()
+    num_days = (end - start).days + 1  # inclusive of both start and end
+    return num_days * INTERVALS_PER_DAY

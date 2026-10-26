@@ -32,6 +32,7 @@ from app.core.config import (
     DEMO_MODE,
     PROCESSED_DIR,
     RAW_DIR,
+    compute_expected_intervals,
 )
 from app.services.elexon_client import fetch_fuelhh_wind, fetch_windfor
 
@@ -201,7 +202,7 @@ def run_ingestion(
         logger.info("Forecasts cached: %d rows.", len(forecasts_df))
 
     # ── Coverage stats ────────────────────────────────────────────────────────
-    expected_intervals = (end - start).days * 48 + 48
+    expected_intervals = compute_expected_intervals(start_str, end_str)
     actual_intervals = len(actuals_df)
 
     meta = {
@@ -211,8 +212,8 @@ def run_ingestion(
         "expected_half_hourly_intervals": expected_intervals,
         "actual_intervals_fetched": actual_intervals,
         "forecast_records_fetched": len(forecasts_df),
-        "actuals_parquet": str(_ACTUALS_PARQUET),
-        "forecasts_parquet": str(_FORECASTS_PARQUET),
+        "actuals_parquet": _ACTUALS_PARQUET.name,
+        "forecasts_parquet": _FORECASTS_PARQUET.name,
         "demo_mode": False,
         "note_temporal_resolution": (
             "FUELHH actuals are half-hourly; WINDFOR forecasts are hourly. "

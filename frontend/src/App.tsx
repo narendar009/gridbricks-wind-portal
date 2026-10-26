@@ -564,6 +564,13 @@ function TopErrorsPanel() {
 // ─────────────────────────────────────────────
 type SortKey = 'start_time' | 'actual_mw' | 'forecast_mw' | 'error_mw' | 'abs_error_mw'
 
+// Defined outside IntervalsPanel to avoid react/static-components lint warning
+function SortArrow({ col, sortBy, sortOrder }: { col: SortKey; sortBy: SortKey; sortOrder: 'asc' | 'desc' }) {
+  return col !== sortBy
+    ? <span style={{ opacity: 0.3 }}>&#x21c5;</span>
+    : <span>{sortOrder === 'asc' ? '\u2191' : '\u2193'}</span>
+}
+
 function IntervalsPanel() {
   const [data, setData] = useState<PaginatedIntervals | null>(null)
   const [loading, setLoading] = useState(true)
@@ -598,11 +605,6 @@ function IntervalsPanel() {
     else { setSortBy(col); setSortOrder('asc') }
     setPage(1)
   }
-
-  const SortArrow = ({ col }: { col: SortKey }) =>
-    col !== sortBy
-      ? <span style={{ opacity: 0.3 }}>\u21c5</span>
-      : <span>{sortOrder === 'asc' ? '\u2191' : '\u2193'}</span>
 
   const statusBadge = (s: string) => {
     const cls = s === 'matched'
@@ -639,12 +641,12 @@ function IntervalsPanel() {
                 <table>
                   <thead>
                     <tr>
-                      <th onClick={() => handleSort('start_time')}>Time <SortArrow col="start_time" /></th>
+                      <th onClick={() => handleSort('start_time')}>Time <SortArrow col="start_time" sortBy={sortBy} sortOrder={sortOrder} /></th>
                       <th>Date</th>
-                      <th onClick={() => handleSort('actual_mw')}>Actual MW <SortArrow col="actual_mw" /></th>
-                      <th onClick={() => handleSort('forecast_mw')}>Forecast MW <SortArrow col="forecast_mw" /></th>
-                      <th onClick={() => handleSort('error_mw')}>Error MW <SortArrow col="error_mw" /></th>
-                      <th onClick={() => handleSort('abs_error_mw')}>|Error| MW <SortArrow col="abs_error_mw" /></th>
+                      <th onClick={() => handleSort('actual_mw')}>Actual MW <SortArrow col="actual_mw" sortBy={sortBy} sortOrder={sortOrder} /></th>
+                      <th onClick={() => handleSort('forecast_mw')}>Forecast MW <SortArrow col="forecast_mw" sortBy={sortBy} sortOrder={sortOrder} /></th>
+                      <th onClick={() => handleSort('error_mw')}>Error MW <SortArrow col="error_mw" sortBy={sortBy} sortOrder={sortOrder} /></th>
+                      <th onClick={() => handleSort('abs_error_mw')}>|Error| MW <SortArrow col="abs_error_mw" sortBy={sortBy} sortOrder={sortOrder} /></th>
                       <th>Status</th>
                     </tr>
                   </thead>

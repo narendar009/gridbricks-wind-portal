@@ -5,7 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.115+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Build-Vite%206-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev)
-[![Pytest](https://img.shields.io/badge/Tests-26%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](https://pytest.org)
+[![Pytest](https://img.shields.io/badge/Tests-77%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](https://pytest.org)
 [![Docker](https://img.shields.io/badge/Containers-Docker%20Compose-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com)
 [![Data](https://img.shields.io/badge/Data-Elexon%20BMRS%20(FUELHH%20%2B%20WINDFOR)-FF6F00.svg)](https://data.elexon.co.uk)
 
@@ -49,14 +49,14 @@ Evaluating all **1,488 half-hour settlement periods** across January 1–31, 202
 |:---|:---:|:---|
 | **Coverage** | **100.0%** (1,488 / 1,488) | Complete continuous data coverage; zero missing actuals or unmatched settlement intervals. |
 | **MAE** (Mean Absolute Error) | **2,126.1 MW** | On average, day-ahead forecasts diverged from real-time generation by over 2.1 GW. |
-| **RMSE** (Root Mean Square Error) | **2,620.8 MW** | High RMSE-to-MAE ratio (1.23x) demonstrates significant extreme tail-risk outliers during North Sea gale systems. |
+| **RMSE** (Root Mean Square Error) | **2,620.8 MW** | RMSE-to-MAE ratio of 1.23x indicates meaningful tail-risk outliers: large individual misses drive the squared-error penalty significantly above the mean. |
 | **Bias** (Mean Error: Forecast − Actual) | **+1,840.3 MW** | **Persistent Positive Over-forecasting**. The day-ahead model consistently overestimated wind output by ~1.84 GW across January. |
 | **WAPE** (Weighted Absolute % Error) | **18.36%** | Normalized percentage error against total volume delivered (~17.2 TWh generated). |
 
 ### Key Procurement Desk Takeaways
 1. **Systematic Over-Forecasting Bias**: A +1,840 MW mean bias means procurement desks relying uncritically on unadjusted BMRS day-ahead wind forecasts were consistently positioned **short** going into real-time delivery.
 2. **Diurnal Error Patterns**: Time-of-day analytics reveal highest absolute variance occurs during the afternoon peak demand ramp (16:00–19:00 GMT), precisely when power prices and balancing costs are most expensive.
-3. **Extreme Events**: The top 20 error intervals show individual half-hour forecast misses exceeding **6,500 MW**, typically corresponding to fast-moving low-pressure Atlantic frontal boundaries stalling or tracking north of simulated paths.
+3. **Largest Error Events**: The top 20 error intervals show individual half-hour forecast misses exceeding **6,500 MW** (verified from dataset; maximum observed: ~6,857 MW). These large misses are consistent with rapid wind ramp events visible in the time series but cannot be attributed to specific named weather systems without external meteorological data.
 
 ---
 
@@ -172,7 +172,7 @@ All responses return standard ISO-8601 UTC timestamps (`YYYY-MM-DDTHH:MM:SSZ`) a
 
 ### 1. Repository Setup
 ```bash
-git clone https://github.com/example/gridbricks-wind-portal.git
+git clone <your-repository-url>
 cd gridbricks-wind-portal
 cp .env.example .env
 ```
@@ -254,8 +254,8 @@ backend/tests/test_forecast_selector.py::TestForecastVintageSelection::test_fore
 backend/tests/test_forecast_selector.py::TestForecastVintageSelection::test_latest_eligible_publication_wins PASSED
 backend/tests/test_forecast_selector.py::TestForecastVintageSelection::test_newer_ineligible_forecast_never_replaces_eligible PASSED
 backend/tests/test_forecast_selector.py::TestMetricsCalculations::test_wape_calculation PASSED
-...
-============================== 26 passed in 1.52s ==============================
+... (77 tests total across test_forecast_selector.py, test_api.py, test_ingestion.py)
+============================== 77 passed in 8.7s ==============================
 ```
 
 ---
@@ -263,7 +263,7 @@ backend/tests/test_forecast_selector.py::TestMetricsCalculations::test_wape_calc
 ## 10. Cloud Deployment Guide
 
 ### Frontend on Vercel
-The frontend includes a pre-configured [`vercel.json`](file:///frontend/vercel.json) supporting Single Page Application (SPA) rewrites:
+The frontend includes a pre-configured `frontend/vercel.json` supporting Single Page Application (SPA) rewrites:
 1. Connect your GitHub repository to Vercel.
 2. Set Root Directory to `frontend`.
 3. Set Environment Variable: `VITE_API_BASE_URL=https://your-backend-api.onrender.com`.

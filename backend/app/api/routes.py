@@ -18,6 +18,7 @@ from app.core.config import (
     CUTOFF_MINUTE,
     CUTOFF_TIMEZONE,
     DEMO_MODE,
+    compute_expected_intervals,
 )
 from app.schemas.responses import (
     DailyAccuracyPoint,
@@ -75,7 +76,9 @@ def metadata() -> MetadataResponse:
         analysis_start=meta.get("analysis_start", ANALYSIS_START_DATE),
         analysis_end=meta.get("analysis_end", ANALYSIS_END_DATE),
         ingested_at=meta.get("ingested_at"),
-        expected_intervals=meta.get("expected_half_hourly_intervals", 1488),
+        expected_intervals=meta.get(
+            "expected_half_hourly_intervals", compute_expected_intervals()
+        ),
         actual_intervals=meta.get("actual_intervals_fetched", 0),
         forecast_records=meta.get("forecast_records_fetched", 0),
         demo_mode=cache.get("demo_mode", DEMO_MODE),
@@ -103,7 +106,7 @@ def summary() -> SummaryMetrics:
             missing_forecast_count=0,
             missing_actual_count=0,
             coverage_pct=0.0,
-            expected_intervals=1488,
+            expected_intervals=compute_expected_intervals(),
             note="No data available. Run ingestion or enable DEMO_MODE.",
         )
     metrics = compute_summary_metrics(matched)

@@ -6,14 +6,14 @@ those where both actual_mw and forecast_mw are present.
 
 Metrics:
 - MAE  = mean(|forecast - actual|)
-- RMSE = sqrt(mean((forecast - actual)²))
+- RMSE = sqrt(mean((forecast - actual)^2))
 - Bias = mean(forecast - actual)  [positive = overprediction]
-- WAPE = sum(|forecast - actual|) / sum(|actual|) × 100
+- WAPE = sum(|forecast - actual|) / sum(|actual|) x 100
          [returns None if denominator is zero]
 
-Sign convention: error = forecast − actual
-  positive → forecast overpredicted
-  negative → forecast underpredicted
+Sign convention: error = forecast - actual
+  positive -> forecast overpredicted
+  negative -> forecast underpredicted
 """
 import logging
 import math
@@ -21,6 +21,8 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+
+from app.core.config import compute_expected_intervals
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +35,17 @@ def _valid_matched(df: pd.DataFrame) -> pd.DataFrame:
 def compute_summary_metrics(df: pd.DataFrame) -> dict[str, Any]:
     """
     Compute monthly summary metrics over all valid matched intervals.
+
+    The expected_intervals denominator is derived from the configured
+    ANALYSIS_START_DATE / ANALYSIS_END_DATE rather than hardcoded.
     """
     total = len(df)
     matched = _valid_matched(df)
     n = len(matched)
     missing_forecast = int((df["status"] == "missing_forecast").sum()) if not df.empty else 0
     missing_actual = int((df.get("status", pd.Series()) == "missing_actual").sum()) if not df.empty else 0
+
+    expected = compute_expected_intervals()
 
     if n == 0:
         return {
@@ -51,7 +58,7 @@ def compute_summary_metrics(df: pd.DataFrame) -> dict[str, Any]:
             "missing_forecast_count": missing_forecast,
             "missing_actual_count": missing_actual,
             "coverage_pct": 0.0,
-            "expected_intervals": 1488,
+            "expected_intervals": expected,
             "note": "No valid matched intervals available for metric computation.",
         }
 
@@ -65,8 +72,7 @@ def compute_summary_metrics(df: pd.DataFrame) -> dict[str, Any]:
     denom = float(np.sum(np.abs(actuals)))
     wape = float(np.sum(np.abs(errors)) / denom * 100) if denom > 0 else None
 
-    expected = 1488  # 31 days × 48 half-hourly intervals
-    coverage_pct = round(n / expected * 100, 2)
+    coverage_pct = round(n / expected * 100, 2) if expected > 0 else 0.0
 
     return {
         "mae_mw": round(mae, 2),
