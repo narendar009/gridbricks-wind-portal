@@ -16,13 +16,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY scripts/ ./scripts/
 
-# Create data directories
+# Create data directories and copy bundled datasets
 RUN mkdir -p /data/raw /data/processed
+COPY data/ /data/
 
 # Environment defaults (override in docker-compose or deployment)
 ENV DATA_DIR=/data \
     DEMO_MODE=false \
-    CORS_ORIGINS=http://localhost:5173 \
+    CORS_ORIGINS=* \
     CACHE_TTL_SECONDS=300
 
 EXPOSE 8000
