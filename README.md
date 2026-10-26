@@ -266,7 +266,7 @@ backend/tests/test_forecast_selector.py::TestMetricsCalculations::test_wape_calc
 The frontend includes a pre-configured `frontend/vercel.json` supporting Single Page Application (SPA) rewrites:
 1. Connect your GitHub repository to Vercel.
 2. Set Root Directory to `frontend`.
-3. Set Environment Variable: `VITE_API_BASE_URL=https://your-backend-api.onrender.com`.
+3. Set Environment Variable: `VITE_API_BASE_URL=https://gridbricks-wind-portal.onrender.com`.
 4. Deploy.
 
 ### Backend on Render / Fly.io / Container Host

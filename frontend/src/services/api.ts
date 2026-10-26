@@ -1,5 +1,8 @@
 // API service layer — all backend communication goes through here
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? 'http://localhost:8000' : 'https://gridbricks-wind-portal.onrender.com')
+).replace(/\/+$/, '');
 
 export interface HealthResponse {
   status: string;
