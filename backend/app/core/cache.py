@@ -13,7 +13,12 @@ from typing import Any
 
 import pandas as pd
 
-from app.core.config import CACHE_TTL_SECONDS, DEMO_MODE
+from app.core.config import (
+    ANALYSIS_END_DATE,
+    ANALYSIS_START_DATE,
+    CACHE_TTL_SECONDS,
+    DEMO_MODE,
+)
 from app.services.data_quality import assess_data_quality
 from app.services.forecast_selector import select_forecast_vintage
 from app.services.ingestion import load_actuals, load_forecasts, _load_metadata
@@ -66,8 +71,13 @@ def _load() -> None:
             )
 
         matched = (
-            select_forecast_vintage(actuals, forecasts)
-            if not actuals.empty
+            select_forecast_vintage(
+                actuals,
+                forecasts,
+                start_date_str=ANALYSIS_START_DATE,
+                end_date_str=ANALYSIS_END_DATE,
+            )
+            if not actuals.empty or not forecasts.empty
             else pd.DataFrame()
         )
         quality = assess_data_quality(actuals, forecasts, matched)

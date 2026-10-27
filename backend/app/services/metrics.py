@@ -42,8 +42,16 @@ def compute_summary_metrics(df: pd.DataFrame) -> dict[str, Any]:
     total = len(df)
     matched = _valid_matched(df)
     n = len(matched)
-    missing_forecast = int((df["status"] == "missing_forecast").sum()) if not df.empty else 0
-    missing_actual = int((df.get("status", pd.Series()) == "missing_actual").sum()) if not df.empty else 0
+    missing_forecast = (
+        int(df["status"].isin(["missing_forecast", "missing_both"]).sum())
+        if not df.empty and "status" in df.columns
+        else 0
+    )
+    missing_actual = (
+        int(df["status"].isin(["missing_actual", "missing_both"]).sum())
+        if not df.empty and "status" in df.columns
+        else 0
+    )
 
     expected = compute_expected_intervals()
 

@@ -407,3 +407,92 @@ class TestTopErrors:
         # Should be sorted descending by abs_error_mw
         assert top[0]["abs_error_mw"] >= top[1]["abs_error_mw"]
         assert top[1]["abs_error_mw"] >= top[2]["abs_error_mw"]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 4: Complete expected timeline and missing actuals
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestExpectedTimelineAndMissingActuals:
+    """Verify that expected timeline generation left-joins actuals and reports missing actuals."""
+
+    def test_timeline_generation_includes_missing_actuals(self):
+        """When actuals have gaps, the expected timeline retains all intervals with status='missing_actual'."""
+        # 1 day = 48 intervals, omit 12:00 and 12:30
+        actual_intervals = []
+        for i in range(48):
+            if i in (24, 25):  # 12:00, 12:30 omitted
+                continue
+            ts = pd.Timestamp("2026-01-02T00:00:00Z") + pd.Timedelta(minutes=30 * i)
+            actual_intervals.append((ts.isoformat(), 3000.0 + i * 10))
+
+        actuals = _make_actuals(actual_intervals)
+        assert len(actuals) == 46
+
+        # Forecasts exist for all hours including 12:00
+        forecast_records = []
+        for h in range(24):
+            ts = pd.Timestamp("2026-01-02T00:00:00Z") + pd.Timedelta(hours=h)
+            # Published at 09:00 on D-1 (before 10:00 cutoff)
+            forecast_records.append((ts.isoformat(), "2026-01-01T09:00:00Z", 3200.0 + h * 20))
+
+        forecasts = _make_forecasts(forecast_records)
+
+        result = select_forecast_vintage(
+            actuals,
+            forecasts,
+            start_date_str="2026-01-02",
+            end_date_str="2026-01-02",
+        )
+
+        # Full 48 intervals must be present
+        assert len(result) == 48
+        assert (result["status"] == "matched").sum() == 46
+        assert (result["status"] == "missing_actual").sum() == 2
+
+        # Verify missing actual rows have forecast populated and null errors
+        missing_rows = result[result["status"] == "missing_actual"]
+        assert len(missing_rows) == 2
+        for _, m_row in missing_rows.iterrows():
+            assert pd.isna(m_row["actual_mw"]) or m_row["actual_mw"] is None
+            assert m_row["forecast_mw"] is not None
+            assert pd.isna(m_row["error_mw"]) or m_row["error_mw"] is None
+            assert pd.isna(m_row["abs_error_mw"]) or m_row["abs_error_mw"] is None
+            assert m_row["forecast_publish_time"] is not None
+
+    def test_missing_actuals_excluded_from_metrics_and_counted_in_summary(self):
+        """Metrics are computed only over valid matched rows, and missing_actuals are counted."""
+        actual_intervals = []
+        for i in range(48):
+            if i in (10, 11, 12):  # 3 intervals missing
+                continue
+            ts = pd.Timestamp("2026-01-02T00:00:00Z") + pd.Timedelta(minutes=30 * i)
+            actual_intervals.append((ts.isoformat(), 4000.0))
+
+        actuals = _make_actuals(actual_intervals)
+        forecast_records = [
+            (
+                (pd.Timestamp("2026-01-02T00:00:00Z") + pd.Timedelta(hours=h)).isoformat(),
+                "2026-01-01T09:00:00Z",
+                4200.0,
+            )
+            for h in range(24)
+        ]
+        forecasts = _make_forecasts(forecast_records)
+
+        result = select_forecast_vintage(
+            actuals,
+            forecasts,
+            start_date_str="2026-01-02",
+            end_date_str="2026-01-02",
+        )
+
+        summary = compute_summary_metrics(result)
+        assert summary["valid_intervals"] == 45
+        assert summary["total_intervals"] == 48
+        assert summary["missing_actual_count"] == 3
+        assert summary["missing_forecast_count"] == 0
+        # MAE should be exactly 200.0 (4200 - 4000) over valid intervals
+        assert abs(summary["mae_mw"] - 200.0) < 0.01
+

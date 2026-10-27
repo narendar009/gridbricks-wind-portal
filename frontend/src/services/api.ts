@@ -122,8 +122,15 @@ async function fetchJSON<T>(path: string, params?: Record<string, string | numbe
   }
   const resp = await fetch(url.toString());
   if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`API ${resp.status}: ${text.slice(0, 200)}`);
+    let errorDetail = '';
+    try {
+      const errJson = await resp.json();
+      errorDetail = errJson.detail || errJson.message || JSON.stringify(errJson);
+    } catch {
+      const text = await resp.text();
+      errorDetail = text.slice(0, 200);
+    }
+    throw new Error(errorDetail ? `API ${resp.status}: ${errorDetail}` : `API ${resp.status}`);
   }
   return resp.json() as Promise<T>;
 }

@@ -3,7 +3,7 @@ FastAPI route handlers for all endpoints.
 """
 import logging
 import math
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
 import pandas as pd
@@ -113,33 +113,62 @@ def summary() -> SummaryMetrics:
     return SummaryMetrics(**metrics)
 
 
+def _parse_iso_date(date_str: str, param_name: str) -> date:
+    """
+    Parse a date string in strict YYYY-MM-DD ISO format.
+    Raises HTTPException(400) if malformed or impossible calendar date.
+    """
+    if not isinstance(date_str, str) or len(date_str) != 10:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid {param_name} format: '{date_str}'. Expected YYYY-MM-DD.",
+        )
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid {param_name} date: '{date_str}'. Must be a valid calendar date in YYYY-MM-DD format.",
+        ) from exc
+
+
+def _validate_date_range(
+    date_from: Optional[str], date_to: Optional[str]
+) -> tuple[Optional[date], Optional[date]]:
+    """Validate date_from and date_to, ensuring ISO validity and date_from <= date_to."""
+    d_from = _parse_iso_date(date_from, "date_from") if date_from else None
+    d_to = _parse_iso_date(date_to, "date_to") if date_to else None
+    if d_from and d_to and d_from > d_to:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid date range: date_from ('{date_from}') must be less than or equal to date_to ('{date_to}').",
+        )
+    return d_from, d_to
+
+
 @router.get("/timeseries", response_model=TimeSeriesResponse, tags=["Analytics"])
 def timeseries(
     date_from: Optional[str] = Query(None, description="YYYY-MM-DD filter start"),
     date_to: Optional[str] = Query(None, description="YYYY-MM-DD filter end"),
 ) -> TimeSeriesResponse:
+    d_from, d_to = _validate_date_range(date_from, date_to)
+
     cache = get_cache()
     matched = cache.get("matched_df")
 
     if matched is None or (isinstance(matched, pd.DataFrame) and matched.empty):
-        return TimeSeriesResponse(data=[], count=0)
+        return TimeSeriesResponse(data=[], count=0, date_from=date_from, date_to=date_to)
 
     df = matched.copy()
     df["start_time"] = pd.to_datetime(df["start_time"], utc=True)
 
-    if date_from:
-        try:
-            dt_from = pd.Timestamp(date_from, tz="UTC")
-            df = df[df["start_time"] >= dt_from]
-        except Exception:
-            raise HTTPException(status_code=400, detail=f"Invalid date_from: {date_from}")
+    if d_from:
+        dt_from = pd.Timestamp(datetime.combine(d_from, datetime.min.time()), tz="UTC")
+        df = df[df["start_time"] >= dt_from]
 
-    if date_to:
-        try:
-            dt_to = pd.Timestamp(date_to, tz="UTC") + pd.Timedelta(days=1)
-            df = df[df["start_time"] < dt_to]
-        except Exception:
-            raise HTTPException(status_code=400, detail=f"Invalid date_to: {date_to}")
+    if d_to:
+        dt_to = pd.Timestamp(datetime.combine(d_to, datetime.min.time()), tz="UTC") + pd.Timedelta(days=1)
+        df = df[df["start_time"] < dt_to]
 
     df = df.sort_values("start_time")
 
@@ -174,14 +203,16 @@ def timeseries(
 
 @router.get("/intervals", response_model=PaginatedIntervals, tags=["Analytics"])
 def intervals(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
-    status: Optional[str] = Query(None, description="Filter by status: matched | missing_forecast"),
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(50, ge=1, le=200, description="Records per page"),
+    date_from: Optional[str] = Query(None, description="YYYY-MM-DD filter start"),
+    date_to: Optional[str] = Query(None, description="YYYY-MM-DD filter end"),
+    status: Optional[str] = Query(None, description="Filter by status: matched | missing_forecast | missing_actual | missing_both"),
     sort_by: Optional[str] = Query("start_time", description="Column to sort by"),
     sort_order: Optional[str] = Query("asc", description="asc | desc"),
 ) -> PaginatedIntervals:
+    d_from, d_to = _validate_date_range(date_from, date_to)
+
     cache = get_cache()
     matched = cache.get("matched_df")
 
@@ -191,17 +222,13 @@ def intervals(
     df = matched.copy()
     df["start_time"] = pd.to_datetime(df["start_time"], utc=True)
 
-    if date_from:
-        try:
-            df = df[df["start_time"] >= pd.Timestamp(date_from, tz="UTC")]
-        except Exception:
-            raise HTTPException(400, f"Invalid date_from: {date_from}")
+    if d_from:
+        dt_from = pd.Timestamp(datetime.combine(d_from, datetime.min.time()), tz="UTC")
+        df = df[df["start_time"] >= dt_from]
 
-    if date_to:
-        try:
-            df = df[df["start_time"] < pd.Timestamp(date_to, tz="UTC") + pd.Timedelta(days=1)]
-        except Exception:
-            raise HTTPException(400, f"Invalid date_to: {date_to}")
+    if d_to:
+        dt_to = pd.Timestamp(datetime.combine(d_to, datetime.min.time()), tz="UTC") + pd.Timedelta(days=1)
+        df = df[df["start_time"] < dt_to]
 
     if status:
         df = df[df["status"] == status]

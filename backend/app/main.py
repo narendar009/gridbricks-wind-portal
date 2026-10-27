@@ -98,9 +98,6 @@ async def global_exception_handler(request: Request, exc: Exception):
     """Ensure all unhandled exceptions return JSON with CORS headers."""
     logger.exception("Unhandled error processing %s %s: %s", request.method, request.url.path, exc)
     origin = request.headers.get("origin")
-    allow_origin = "*"
-    if origin and not allow_all and origin in cors_origins:
-        allow_origin = origin
     response = JSONResponse(
         status_code=500,
         content={
@@ -109,7 +106,11 @@ async def global_exception_handler(request: Request, exc: Exception):
             "message": str(exc),
         },
     )
-    response.headers["Access-Control-Allow-Origin"] = allow_origin
+    if allow_all:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    elif origin and origin in cors_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Vary"] = "Origin"
     return response
 
 app.include_router(router, prefix="/api")

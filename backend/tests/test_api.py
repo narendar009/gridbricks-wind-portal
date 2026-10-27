@@ -137,6 +137,22 @@ class TestTimeseriesEndpoint:
         resp = client.get("/api/timeseries", params={"date_from": "not-a-date"})
         assert resp.status_code == 400
 
+    def test_timeseries_malformed_date_returns_400(self):
+        resp = client.get("/api/timeseries", params={"date_from": "2026/01/10"})
+        assert resp.status_code == 400
+
+    def test_timeseries_impossible_date_returns_400(self):
+        resp = client.get("/api/timeseries", params={"date_from": "2026-02-30"})
+        assert resp.status_code == 400
+
+    def test_timeseries_reversed_date_range_returns_400(self):
+        resp = client.get(
+            "/api/timeseries",
+            params={"date_from": "2026-01-20", "date_to": "2026-01-10"},
+        )
+        assert resp.status_code == 400
+        assert "less than or equal to" in resp.json()["detail"]
+
 
 # ==============================================================================
 # Intervals (pagination) endpoint
@@ -166,6 +182,12 @@ class TestIntervalsEndpoint:
         for record in data["data"]:
             assert record["status"] == "matched"
 
+    def test_intervals_status_filter_missing_actual(self):
+        resp = client.get("/api/intervals", params={"status": "missing_actual"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "data" in data
+
     def test_intervals_sort_by_error(self):
         resp = client.get("/api/intervals", params={
             "sort_by": "abs_error_mw", "sort_order": "desc", "page_size": 5,
@@ -182,6 +204,17 @@ class TestIntervalsEndpoint:
             "date_from": "2026-01-15", "date_to": "2026-01-15",
         })
         assert resp.status_code == 200
+
+    def test_intervals_invalid_date_returns_400(self):
+        resp = client.get("/api/intervals", params={"date_from": "invalid-date"})
+        assert resp.status_code == 400
+
+    def test_intervals_reversed_date_range_returns_400(self):
+        resp = client.get(
+            "/api/intervals",
+            params={"date_from": "2026-01-25", "date_to": "2026-01-10"},
+        )
+        assert resp.status_code == 400
 
 
 # ==============================================================================

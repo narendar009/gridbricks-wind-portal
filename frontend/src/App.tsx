@@ -627,6 +627,7 @@ function IntervalsPanel() {
             <option value="">All statuses</option>
             <option value="matched">Matched</option>
             <option value="missing_forecast">Missing forecast</option>
+            <option value="missing_actual">Missing actual</option>
           </select>
           <button id="intervals-refresh-btn" className="btn btn-ghost" onClick={load} title="Refresh">
             <RefreshCw size={14} />

@@ -92,10 +92,18 @@ CUTOFF_TIMEZONE = os.getenv("CUTOFF_TIMEZONE", "Europe/London")
 CUTOFF_DAY_OFFSET = int(os.getenv("CUTOFF_DAY_OFFSET", "1"))
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-CORS_ORIGINS = os.getenv(
-    "CORS_ORIGINS",
-    "http://localhost:5173,http://localhost:3000,https://gridbricks-wind-portal.vercel.app,*",
-).split(",")
+# Explicit allowed origins by default: production Vercel frontend and local dev.
+# Wildcard '*' is NOT enabled by default to ensure restrictive production posture.
+DEFAULT_CORS_ORIGINS = (
+    "https://gridbricks-wind-portal.vercel.app,"
+    "http://localhost:5173,"
+    "http://localhost:3000"
+)
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
+    if origin.strip()
+]
 
 # ── Caching ───────────────────────────────────────────────────────────────────
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "300"))

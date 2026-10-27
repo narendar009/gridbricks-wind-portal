@@ -70,9 +70,17 @@ def compute_cutoff_utc(delivery_date: date) -> datetime:
 def select_forecast_vintage(
     actuals_df: pd.DataFrame,
     forecasts_df: pd.DataFrame,
+    start_date_str: str | None = None,
+    end_date_str: str | None = None,
 ) -> pd.DataFrame:
     """
-    For each actual delivery interval, select the latest eligible forecast.
+    Select the latest eligible forecast vintage published on or before the
+    provisional day-ahead procurement decision cutoff for each delivery interval.
+
+    Supports generating the complete expected half-hourly delivery timeline when
+    start_date_str and end_date_str are supplied (or derived from configured analysis scope).
+    Actual intervals are left-joined against that timeline so missing actual intervals
+    are explicitly reported in the output rather than omitted.
 
     Parameters
     ----------
@@ -83,44 +91,61 @@ def select_forecast_vintage(
         - start_time (datetime, UTC-aware) — forecast target interval
         - publish_time (datetime, UTC-aware)
         - forecast_mw (float)
+    start_date_str : Optional[str] — YYYY-MM-DD start of expected delivery timeline
+    end_date_str : Optional[str] — YYYY-MM-DD end of expected delivery timeline
 
     Returns
     -------
     DataFrame with one row per delivery interval containing:
-        start_time, actual_mw, forecast_mw, forecast_publish_time,
-        delivery_date, cutoff_utc, status
+        start_time, delivery_date, cutoff_utc, actual_mw, forecast_mw,
+        forecast_publish_time, error_mw, abs_error_mw, status
     """
-    if actuals_df.empty:
-        logger.warning("Actuals DataFrame is empty; returning empty result.")
+    actuals = (
+        actuals_df.copy()
+        if not actuals_df.empty
+        else pd.DataFrame(columns=["start_time", "actual_mw"])
+    )
+    forecasts = (
+        forecasts_df.copy()
+        if not forecasts_df.empty
+        else pd.DataFrame(columns=["start_time", "publish_time", "forecast_mw"])
+    )
+
+    if not actuals.empty:
+        actuals["start_time"] = pd.to_datetime(actuals["start_time"], utc=True)
+    if not forecasts.empty:
+        forecasts["start_time"] = pd.to_datetime(forecasts["start_time"], utc=True)
+        forecasts["publish_time"] = pd.to_datetime(forecasts["publish_time"], utc=True)
+
+    # Determine delivery intervals timeline
+    if start_date_str is not None and end_date_str is not None:
+        start_ts = pd.Timestamp(f"{start_date_str}T00:00:00Z")
+        end_ts = pd.Timestamp(f"{end_date_str}T23:30:00Z")
+        timeline = pd.date_range(start=start_ts, end=end_ts, freq="30min", tz="UTC")
+    elif not actuals.empty:
+        timeline = pd.DatetimeIndex(actuals["start_time"].drop_duplicates().sort_values())
+    else:
         return _empty_result()
 
-    # Ensure timestamps are UTC-aware
-    actuals_df = actuals_df.copy()
-    forecasts_df = forecasts_df.copy()
+    if len(timeline) == 0:
+        return _empty_result()
 
-    actuals_df["start_time"] = pd.to_datetime(actuals_df["start_time"], utc=True)
-    if not forecasts_df.empty:
-        forecasts_df["start_time"] = pd.to_datetime(
-            forecasts_df["start_time"], utc=True
-        )
-        forecasts_df["publish_time"] = pd.to_datetime(
-            forecasts_df["publish_time"], utc=True
-        )
+    # Map actuals by start_time for O(1) lookup
+    actuals_map: dict[pd.Timestamp, float] = {}
+    if not actuals.empty:
+        for _, row in actuals.iterrows():
+            ts = row["start_time"]
+            if ts not in actuals_map and pd.notna(row["actual_mw"]):
+                actuals_map[ts] = float(row["actual_mw"])
 
     rows = []
-    for _, actual_row in actuals_df.iterrows():
-        interval_start: pd.Timestamp = actual_row["start_time"]
-        actual_mw: float = actual_row["actual_mw"]
+    for interval_start in timeline:
+        has_actual = interval_start in actuals_map
+        actual_mw = actuals_map[interval_start] if has_actual else None
 
         # Delivery date in Europe/London (for cutoff computation)
         delivery_date_london = interval_start.tz_convert(_tz_london).date()
         cutoff_utc = compute_cutoff_utc(delivery_date_london)
-
-        if forecasts_df.empty:
-            rows.append(
-                _missing_row(interval_start, actual_mw, delivery_date_london, cutoff_utc)
-            )
-            continue
 
         # ── Temporal resolution bridging ─────────────────────────────────────
         # FUELHH is half-hourly; WINDFOR is hourly.
@@ -128,44 +153,54 @@ def select_forecast_vintage(
         # matching forecast record. E.g., 06:30 → 06:00, 07:00 → 07:00.
         forecast_hour = interval_start.floor("h")
 
-        # Filter forecasts targeting this forecast hour
-        candidate_mask = forecasts_df["start_time"] == forecast_hour
-        candidates = forecasts_df[candidate_mask].copy()
+        has_forecast = False
+        forecast_mw = None
+        forecast_publish_time = None
 
-
-        if candidates.empty:
-            rows.append(
-                _missing_row(interval_start, actual_mw, delivery_date_london, cutoff_utc)
+        if not forecasts.empty:
+            candidate_mask = (forecasts["start_time"] == forecast_hour) & (
+                forecasts["publish_time"] <= pd.Timestamp(cutoff_utc)
             )
-            continue
+            eligible = forecasts[candidate_mask]
+            if not eligible.empty:
+                # Deterministic tie-breaking: latest publishTime, then lowest forecast_mw
+                eligible = eligible.sort_values(
+                    by=["publish_time", "forecast_mw"], ascending=[False, True]
+                )
+                selected = eligible.iloc[0]
+                has_forecast = True
+                forecast_mw = float(selected["forecast_mw"])
+                forecast_publish_time = selected["publish_time"]
 
-        # Filter to forecasts published AT OR BEFORE the cutoff
-        eligible = candidates[candidates["publish_time"] <= pd.Timestamp(cutoff_utc)]
+        # Status and errors
+        if has_actual and has_forecast:
+            status = "matched"
+            error_mw = forecast_mw - actual_mw
+            abs_error_mw = abs(error_mw)
+        elif has_actual and not has_forecast:
+            status = "missing_forecast"
+            error_mw = None
+            abs_error_mw = None
+        elif not has_actual and has_forecast:
+            status = "missing_actual"
+            error_mw = None
+            abs_error_mw = None
+        else:
+            status = "missing_both"
+            error_mw = None
+            abs_error_mw = None
 
-        if eligible.empty:
-            rows.append(
-                _missing_row(interval_start, actual_mw, delivery_date_london, cutoff_utc)
-            )
-            continue
-
-        # Resolve duplicates deterministically: sort by (publish_time desc, forecast_mw asc)
-        eligible = eligible.sort_values(
-            by=["publish_time", "forecast_mw"], ascending=[False, True]
-        )
-        selected = eligible.iloc[0]
-
-        error_mw = float(selected["forecast_mw"]) - float(actual_mw)
         rows.append(
             {
                 "start_time": interval_start,
                 "delivery_date": delivery_date_london,
                 "cutoff_utc": cutoff_utc,
-                "actual_mw": float(actual_mw),
-                "forecast_mw": float(selected["forecast_mw"]),
-                "forecast_publish_time": selected["publish_time"],
+                "actual_mw": actual_mw,
+                "forecast_mw": forecast_mw,
+                "forecast_publish_time": forecast_publish_time,
                 "error_mw": error_mw,
-                "abs_error_mw": abs(error_mw),
-                "status": "matched",
+                "abs_error_mw": abs_error_mw,
+                "status": status,
             }
         )
 
@@ -182,31 +217,13 @@ def select_forecast_vintage(
         )
 
     logger.info(
-        "Vintage selection complete: %d total, %d matched, %d missing_forecast",
+        "Vintage selection complete: %d total, %d matched, %d missing_forecast, %d missing_actual",
         len(result),
         (result["status"] == "matched").sum(),
         (result["status"] == "missing_forecast").sum(),
+        (result["status"] == "missing_actual").sum(),
     )
     return result
-
-
-def _missing_row(
-    interval_start: pd.Timestamp,
-    actual_mw: float,
-    delivery_date: date,
-    cutoff_utc: datetime,
-) -> dict:
-    return {
-        "start_time": interval_start,
-        "delivery_date": delivery_date,
-        "cutoff_utc": cutoff_utc,
-        "actual_mw": float(actual_mw),
-        "forecast_mw": None,
-        "forecast_publish_time": None,
-        "error_mw": None,
-        "abs_error_mw": None,
-        "status": "missing_forecast",
-    }
 
 
 def _empty_result() -> pd.DataFrame:

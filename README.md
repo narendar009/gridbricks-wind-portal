@@ -5,7 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.115+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Build-Vite%206-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev)
-[![Pytest](https://img.shields.io/badge/Tests-84%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](https://pytest.org)
+[![Pytest](https://img.shields.io/badge/Tests-92%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](https://pytest.org)
 [![Docker](https://img.shields.io/badge/Containers-Docker%20Compose-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com)
 [![Data](https://img.shields.io/badge/Data-Elexon%20BMRS%20(FUELHH%20%2B%20WINDFOR)-FF6F00.svg)](https://data.elexon.co.uk)
 
@@ -22,7 +22,7 @@
 7. [Installation & Local Development](#7-installation--local-development)
 8. [Docker & Containerized Deployment](#8-docker--containerized-deployment)
 9. [Automated Testing & Validation](#9-automated-testing--validation)
-10. [Cloud Deployment Guide](#10-cloud-deployment-guide)
+10. [Cloud Deployment & Environment Variables](#10-cloud-deployment--environment-variables)
 11. [Known Limitations & Roadmap](#11-known-limitations--roadmap)
 12. [10-Minute Video Presentation Plan](#12-10-minute-video-presentation-plan)
 13. [AI Disclosure](#13-ai-disclosure)
@@ -31,32 +31,32 @@
 
 ## 1. Executive Summary & Business Context
 
-In Great Britain's wholesale electricity market, day-ahead power procurement desks must submit contractual notifications and trade commitments prior to delivery day. With wind energy supplying a major, fluctuating share of the UK grid (often exceeding 15–20 GW in winter), procurement teams face severe volume risk:
+In Great Britain's wholesale electricity market, day-ahead power procurement desks must establish physical generation expectations prior to delivery day. With wind energy supplying a major, fluctuating share of the UK grid (frequently exceeding 15–20 GW during winter delivery months), procurement teams face significant physical volume variability:
 
-* **Imbalance Exposure**: Differences between contracted physical position and metered physical generation are settled through Elexon's Imbalance Settlement Process at volatile Cashout Prices (System Buy Price / System Sell Price).
-* **Directional Asymmetry**: Over-forecasting wind leaves the supplier short on physical generation during delivery, forcing the utility to buy emergency balancing energy at steep peak prices.
-* **The Lookahead Trap**: National Grid ESO issues frequent forecast revisions (often several times an hour). Evaluating forecast accuracy using forecasts published *after* the procurement decision creates dangerous hindsight bias.
+* **Physical Volume Discrepancy**: Differences between the generation forecasted at decision cutoff time and the actual metered generation delivered represent volume mismatches that procurement teams must track and understand.
+* **Directional Asymmetry**: Over-forecasting wind generation implies actual delivery fell short of the day-ahead forecast, whereas under-forecasting means actual delivered power exceeded expectations.
+* **The Lookahead Trap**: System operators and forecasting providers publish frequent forecast revisions throughout the day. Evaluating forecast performance using revisions published *after* the procurement decision introduces lookahead leakage and hindsight bias.
 
-The **Wind Forecast Intelligence Portal** solves this problem by strictly enforcing **decision-time eligibility**: for every delivery interval in January 2026, it pinpoints the **latest forecast published before the operational cutoff (10:00 London time on D-1)**, isolates actual generation delivered, and computes institutional-grade accuracy analytics.
+The **Wind Forecast Intelligence Portal** solves this problem by strictly enforcing **decision-time eligibility**: for every delivery interval in January 2026, it isolates the **latest forecast published on or before the operational cutoff (provisional default: 10:00 Europe/London on D-1)**, pairs it with actual generation delivered, and computes rigorous accuracy analytics.
 
 ---
 
 ## 2. Key Analytics & January 2026 Findings
 
-Evaluating all **1,488 half-hour settlement periods** across January 1–31, 2026 against the day-ahead 10:00 London cutoff reveals critical commercial insights:
+Evaluating all **1,488 half-hour settlement periods** across January 1–31, 2026 against the day-ahead 10:00 London cutoff reveals key analytical findings:
 
-| Metric | Measured Value | Commercial & Operational Meaning |
+| Metric | Measured Value | Operational & Analytical Meaning |
 |:---|:---:|:---|
-| **Coverage** | **100.0%** (1,488 / 1,488) | Complete continuous data coverage; zero missing actuals or unmatched settlement intervals. |
-| **MAE** (Mean Absolute Error) | **2,126.1 MW** | On average, day-ahead forecasts diverged from real-time generation by over 2.1 GW. |
-| **RMSE** (Root Mean Square Error) | **2,620.8 MW** | RMSE-to-MAE ratio of 1.23x indicates meaningful tail-risk outliers: large individual misses drive the squared-error penalty significantly above the mean. |
-| **Bias** (Mean Error: Forecast − Actual) | **+1,840.3 MW** | **Persistent Positive Over-forecasting**. The day-ahead model consistently overestimated wind output by ~1.84 GW across January. |
-| **WAPE** (Weighted Absolute % Error) | **18.36%** | Normalized percentage error against total volume delivered (~17.2 TWh generated). |
+| **Coverage** | **100.0%** (1,488 / 1,488) | Complete continuous data coverage; all 1,488 expected half-hourly settlement intervals have matched actuals and eligible forecasts in the January 2026 dataset. |
+| **MAE** (Mean Absolute Error) | **2,126.1 MW** | Mean absolute difference between the decision-time forecast and delivered generation across all valid matched intervals. |
+| **RMSE** (Root Mean Square Error) | **2,620.8 MW** | Penalizes larger individual errors; RMSE/MAE ratio of 1.23x highlights variance driven by large ramp discrepancies. |
+| **Bias** (Mean Error: Forecast − Actual) | **+1,840.3 MW** | **Persistent Positive Over-forecasting**. Day-ahead forecasts averaged ~1.84 GW above actual generation across January. |
+| **WAPE** (Weighted Absolute % Error) | **18.36%** | Normalized percentage error against total actual energy volume delivered (~17.2 TWh total generation). |
 
-### Key Procurement Desk Takeaways
-1. **Systematic Over-Forecasting Bias**: A +1,840 MW mean bias means procurement desks relying uncritically on unadjusted BMRS day-ahead wind forecasts were consistently positioned **short** going into real-time delivery.
-2. **Diurnal Error Patterns**: Time-of-day analytics reveal highest absolute variance occurs during the afternoon peak demand ramp (16:00–19:00 GMT), precisely when power prices and balancing costs are most expensive.
-3. **Largest Error Events**: The top 20 error intervals show individual half-hour forecast misses exceeding **6,500 MW** (verified from dataset; maximum observed: ~6,857 MW). These large misses are consistent with rapid wind ramp events visible in the time series but cannot be attributed to specific named weather systems without external meteorological data.
+### Key Analytical Takeaways
+1. **Systematic Over-Forecasting Bias**: A +1,840 MW mean bias indicates that the day-ahead BMRS WINDFOR forecasts available at 10:00 D-1 consistently overestimated national wind generation across January 2026.
+2. **Diurnal Error Patterns**: Time-of-day analytics show that the highest absolute forecast deviations occur during afternoon delivery intervals (16:00–19:00 UTC).
+3. **Largest Error Events**: The top 20 error intervals show individual half-hour discrepancies exceeding **6,500 MW** (maximum observed: ~6,857 MW). These events represent rapid generation ramps in the time series; note that external meteorological attribution is excluded since external weather datasets are outside the project scope.
 
 ---
 
@@ -172,7 +172,7 @@ All responses return standard ISO-8601 UTC timestamps (`YYYY-MM-DDTHH:MM:SSZ`) a
 
 ### 1. Repository Setup
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/narendar009/gridbricks-wind-portal.git
 cd gridbricks-wind-portal
 cp .env.example .env
 ```
@@ -214,18 +214,46 @@ Open your browser at: `http://localhost:5173`
 
 ## 8. Docker & Containerized Deployment
 
-Run the complete multi-service stack with a single command:
+Run the complete multi-service stack with reproducible Docker configurations:
 
+### Prerequisites
+* Docker Engine / Docker Desktop 24+
+* Docker Compose v2+
+
+### Commands Workflow
 ```bash
-docker compose up --build
+# 1. Validate docker compose configuration
+docker compose config
+
+# 2. Build backend and frontend images
+docker compose build
+
+# 3. Start services in the background
+docker compose up -d
+
+# 4. Verify running services and health status
+docker compose ps
+
+# 5. Inspect container logs
+docker compose logs -f
+
+# 6. Stop all containers cleanly
+docker compose down
 ```
 
-Services started:
-* **`gridbricks-backend`**: FastAPI on `http://localhost:8000` with container health checks.
-* **`gridbricks-frontend`**: Nginx Alpine serving production React build on `http://localhost:5173`.
-* **Persistent Data Volume**: `./data` mounted into `/data` so ingested datasets persist across container rebuilds.
+### Service Architecture & Networking
+* **`gridbricks-backend`**: FastAPI application exposed on `http://localhost:8000` (`0.0.0.0:8000`).
+  * Built from `backend/Dockerfile` with `python:3.11-slim`.
+  * Pre-installs `pyarrow>=14.0.0` and all analysis dependencies.
+  * Health check runs every 30s against `http://localhost:8000/api/health`.
+* **`gridbricks-frontend`**: Production Vite React bundle served via Nginx Alpine on `http://localhost:5173` (`0.0.0.0:80`).
+  * Built using multi-stage `frontend/Dockerfile`.
+  * Configured via `VITE_API_BASE_URL=http://localhost:8000` at build time so browser requests reach the backend.
+  * Waits for `gridbricks-backend` to become healthy before starting.
+* **Persistent Storage**: `./data` is mounted to `/data` in the container to persist raw cache and processed Parquet files across restarts.
+* **Context Cleanliness**: `.dockerignore` files in root, backend, and frontend prevent copying virtualenvs, `.git`, `node_modules`, or local secrets into container images.
 
-### Run One-Shot Ingestion Inside Docker
+### One-Shot Ingestion Inside Docker
 ```bash
 docker compose run --rm ingest
 ```
@@ -234,98 +262,135 @@ docker compose run --rm ingest
 
 ## 9. Automated Testing & Validation
 
-The test suite validates the decision-time selector, time zone arithmetic, metric computations, and lookahead protection:
+The test suite validates the decision-time selector, complete expected timeline generation, timezone arithmetic, metric computations, strict ISO date parsing, and lookahead protection:
 
 ```bash
-pytest backend/tests -v
+# Run complete test suite in backend directory
+cd backend
+python -m pytest -v
 ```
 
-### Test Coverage Highlights
-* **Timezone & Cutoff Logic**: Validates 10:00 Europe/London cutoff in both GMT (winter) and BST (summer) regimes.
-* **Lookahead Protection**: Asserts that forecasts published after the cutoff (e.g. 10:05 D-1) are rejected even if newer or closer to delivery.
-* **Tie-Breaking Determinism**: Confirms deterministic sorting when multiple forecasts have identical publish timestamps.
-* **Mathematical Integrity**: Verifies MAE, RMSE, Mean Bias, and WAPE formulas against hand-calculated ground truth vectors.
-* **Missing Data Resilience**: Ensures zero divisions, empty sets, and partial coverage degrade gracefully without raising unhandled exceptions.
+### Test Coverage Highlights (92 Passed)
+* **Timezone & Cutoff Logic**: Validates 10:00 Europe/London cutoff in both GMT (winter, UTC+0) and BST (summer, UTC+1) regimes.
+* **Lookahead Protection**: Asserts that forecasts published after the cutoff (e.g. 10:00:01 on D-1) are strictly rejected even if newer or closer to delivery.
+* **Complete Expected Timeline & Missing Actuals**: Generates the complete 1,488 half-hourly delivery timeline for January 2026 and left-joins actuals against it. If actual intervals are omitted, they are explicitly retained with `status='missing_actual'`, while forecasts are independently selected.
+* **Tie-Breaking Determinism**: Confirms deterministic sorting by `(publish_time DESC, forecast_mw ASC)` when multiple forecasts share the same publish timestamp.
+* **Mathematical Integrity**: Verifies MAE, RMSE, Mean Bias (+1,840.3 MW), and WAPE formulas against hand-calculated ground truth vectors. Validates zero denominators and empty datasets.
+* **Strict API Date Validation**: Enforces ISO `YYYY-MM-DD` date parsing on `/api/timeseries` and `/api/intervals`. Verifies HTTP 400 for malformed dates, impossible dates (e.g., `2026-02-30`), and reversed date ranges (`date_from > date_to`).
+* **Parquet Loading & PyArrow**: Verifies that PyArrow is installed and reads bundled datasets cleanly.
 
 ```text
-backend/tests/test_forecast_selector.py::TestComputeCutoffUtc::test_cutoff_for_jan_02_delivery PASSED
-backend/tests/test_forecast_selector.py::TestComputeCutoffUtc::test_cutoff_in_bst_period PASSED
-backend/tests/test_forecast_selector.py::TestForecastVintageSelection::test_forecast_after_cutoff_is_excluded PASSED
-backend/tests/test_forecast_selector.py::TestForecastVintageSelection::test_latest_eligible_publication_wins PASSED
-backend/tests/test_forecast_selector.py::TestForecastVintageSelection::test_newer_ineligible_forecast_never_replaces_eligible PASSED
-backend/tests/test_forecast_selector.py::TestMetricsCalculations::test_wape_calculation PASSED
-... (84 tests total across test_forecast_selector.py, test_api.py, test_ingestion.py)
-============================== 84 passed in 7.2s ==============================
+============================== test session starts ==============================
+collected 92 items
+
+tests/test_api.py::TestHealthEndpoint::test_health_returns_ok PASSED
+tests/test_api.py::TestTimeseriesEndpoint::test_timeseries_malformed_date_returns_400 PASSED
+tests/test_api.py::TestTimeseriesEndpoint::test_timeseries_impossible_date_returns_400 PASSED
+tests/test_api.py::TestTimeseriesEndpoint::test_timeseries_reversed_date_range_returns_400 PASSED
+tests/test_api.py::TestIntervalsEndpoint::test_intervals_status_filter_missing_actual PASSED
+tests/test_api.py::TestIntervalsEndpoint::test_intervals_reversed_date_range_returns_400 PASSED
+tests/test_forecast_selector.py::TestExpectedTimelineAndMissingActuals::test_timeline_generation_includes_missing_actuals PASSED
+tests/test_forecast_selector.py::TestExpectedTimelineAndMissingActuals::test_missing_actuals_excluded_from_metrics_and_counted_in_summary PASSED
+... (92 tests total across test_forecast_selector.py, test_api.py, test_ingestion.py)
+======================== 92 passed, 1 warning in 5.73s ========================
 ```
 
 ---
 
-## 10. Cloud Deployment Guide
+## 10. Cloud Deployment & Environment Variables
 
-### Frontend on Vercel
-The frontend includes a pre-configured `frontend/vercel.json` supporting Single Page Application (SPA) rewrites:
-1. Connect your GitHub repository to Vercel.
-2. Set Root Directory to `frontend`.
-3. Set Environment Variable: `VITE_API_BASE_URL=https://gridbricks-wind-portal.onrender.com`.
-4. Deploy.
+### Production URLs
+* **Production Frontend (Vercel)**: [https://gridbricks-wind-portal.vercel.app/](https://gridbricks-wind-portal.vercel.app/)
+* **Production Backend (Render)**: [https://gridbricks-wind-portal.onrender.com/](https://gridbricks-wind-portal.onrender.com/)
 
-### Backend on Render / Fly.io / Container Host
-1. Build context: `./backend`.
-2. Dockerfile: `Dockerfile`.
-3. Port: `8000`.
-4. Mount persistent disk at `/data` or bundle the pre-processed Parquet files into the Docker image.
+### Required Environment Variables
+
+#### Backend (Render / Container Host)
+| Variable | Default Value | Description |
+|:---|:---|:---|
+| `DATA_DIR` | `./data` (or `/data` in container) | Path to directory containing `raw/` and `processed/` data |
+| `CORS_ORIGINS` | `https://gridbricks-wind-portal.vercel.app,http://localhost:5173,http://localhost:3000` | Comma-separated list of allowed origins (no wildcard in production) |
+| `ANALYSIS_START_DATE` | `2026-01-01` | Start of delivery analysis scope (YYYY-MM-DD) |
+| `ANALYSIS_END_DATE` | `2026-01-31` | End of delivery analysis scope (YYYY-MM-DD) |
+| `CUTOFF_HOUR` | `10` | Hour of day-ahead decision cutoff (0–23) |
+| `CUTOFF_MINUTE` | `0` | Minute of day-ahead decision cutoff (0–59) |
+| `CUTOFF_TIMEZONE` | `Europe/London` | Local timezone for cutoff rule calculation |
+| `CUTOFF_DAY_OFFSET` | `1` | Days prior to delivery date (1 = D-1) |
+| `DEMO_MODE` | `false` | When `true`, serves synthetic fixtures if files are missing |
+| `CACHE_TTL_SECONDS` | `300` | In-memory cache expiry in seconds |
+
+#### Frontend (Vercel)
+| Variable | Value | Description |
+|:---|:---|:---|
+| `VITE_API_BASE_URL` | `https://gridbricks-wind-portal.onrender.com` | Base URL pointing to deployed Render backend |
+
+### Deployment Instructions
+1. **Frontend on Vercel**:
+   * Root Directory: `frontend`
+   * Build Command: `npm run build`
+   * Output Directory: `dist`
+   * Set `VITE_API_BASE_URL=https://gridbricks-wind-portal.onrender.com`
+   * SPA rewrites are pre-configured in `frontend/vercel.json`.
+2. **Backend on Render**:
+   * Environment: `Python 3` or `Docker`
+   * Root / Context: `backend` (or project root with `requirements.txt`)
+   * Build Command: `pip install -r requirements.txt`
+   * Start Command: `uvicorn app.main:app --host 0.0.0.0 --port 8000`
+   * Ensure `pyarrow>=14.0.0` is installed via `requirements.txt`.
 
 ---
 
 ## 11. Known Limitations & Roadmap
 
-* **Single National Aggregate**: Current BMRS datasets represent Great Britain as a single synchronous zone. In reality, transmission bottlenecks between Scotland and England (B6 boundary) cause localized curtailment.
-* **Static Decision Cutoff**: The default cutoff is 10:00 London time D-1. Future enhancements will introduce a live slider allowing traders to simulate 08:00, 12:00, or Gate Closure cutoffs dynamically in the UI.
-* **Ensemble Blending**: Future iterations can integrate ECMWF/GFS raw weather ensemble spreads to provide confidence intervals around point forecasts.
+* **Single National Synchronous Zone**: BMRS WINDFOR and FUELHH data provide Great Britain-wide aggregates. In real operations, regional transmission constraints (such as the B6 Scottish boundary) cause localized wind curtailment that national figures do not isolate.
+* **Provisional Cutoff Policy**: The 10:00 Europe/London D-1 cutoff is an operational application assumption reflecting typical utility day-ahead scheduling workflows, rather than a single statutory market rule. The backend fully supports configuring different hours and day offsets.
+* **Single Weather Provider Model**: The dataset relies entirely on Elexon's published forecasts. Future enhancements could ingest multi-model numerical weather prediction (NWP) ensembles (ECMWF, GFS, Met Office) to construct probabilistic confidence bands.
 
 ---
 
 ## 12. 10-Minute Video Presentation Plan
 
-This plan structure is designed to deliver a high-scoring demonstration within the strict 10-minute cap:
-
 ### Part 1: Customer-Facing Portal, Insights & Business Value (0:00 – 4:45)
-* **0:00 – 0:45 | The Business Problem**:
-  * Introduce the UK electricity utility context and day-ahead procurement challenge.
-  * Explain why uncritical reliance on forecasts causes severe cashout imbalances.
-* **0:45 – 1:45 | Dashboard KPI Scorecard & The Bias Discovery**:
-  * Walk through the live dashboard.
-  * Highlight the **+1,840 MW mean bias** across January 2026 and explain why this systematically leaves the trading desk short.
-* **1:45 – 2:45 | Interactive Time Series & Weather Regimes**:
-  * Demonstrate zooming into stormy periods (e.g., mid-January frontal passages).
-  * Show actuals vs. day-ahead forecasts and error traces.
+* **0:00 – 0:45 | The Business Context**:
+  * Introduce the UK electricity utility day-ahead procurement challenge.
+  * Explain why decision-time cutoff enforcement is necessary to prevent lookahead bias.
+* **0:45 – 1:45 | Dashboard KPI Scorecard & Bias Discovery**:
+  * Walk through the live portal interface.
+  * Highlight the **+1,840.3 MW mean over-forecasting bias** across January 2026.
+  * Discuss the 1.23x RMSE/MAE ratio indicating tail-risk volatility.
+* **1:45 – 2:45 | Interactive Time Series & Volume Trends**:
+  * Demonstrate zooming into high-volatility periods across January.
+  * Show actuals vs. day-ahead forecasts and error traces with responsive Recharts visualization.
 * **2:45 – 3:45 | Diurnal Profile & Top 20 Outliers**:
-  * Show the time-of-day chart: highlight how error variance peaks during the 16:00–19:00 evening demand ramp.
+  * Show the time-of-day chart: highlight how error variance peaks during the 16:00–19:00 afternoon ramp.
   * Inspect the top 20 error table with exact publication timestamps.
-* **3:45 – 4:45 | Settlement Interval Audit Table & CSV Export**:
-  * Filter by error magnitude and demonstrate export capabilities for compliance and settlement reconciliation.
+* **3:45 – 4:45 | Settlement Interval Audit Table**:
+  * Demonstrate pagination, sorting, status filtering (matched, missing actual, missing forecast), and date filtering.
 
 ### Part 2: Technical Architecture, Methodology & Code Walkthrough (4:45 – 9:45)
 * **4:45 – 5:45 | Decision-Time Cutoff Engine (`forecast_selector.py`)**:
-  * Explain the 10:00 London D-1 cutoff logic.
-  * Show how BST/GMT conversions are handled safely and how lookahead data leakage is strictly prevented.
+  * Walk through the 10:00 London D-1 cutoff algorithm.
+  * Show how BST/GMT transitions are safely resolved and lookahead forecasts are excluded.
+  * Explain complete expected timeline generation (1,488 intervals) and left-joining of actuals.
 * **5:45 – 6:45 | Ingestion Pipeline & Parquet Storage**:
   * Walk through `elexon_client.py` and `ingestion.py`.
-  * Explain the temporal alignment (half-hourly actuals to hourly forecasts).
-* **6:45 – 7:45 | Metrics & Analytical Precision**:
-  * Show the mathematical implementations of MAE, RMSE, Bias, and WAPE in `metrics.py`.
-  * Highlight graceful zero-handling and null safety.
-* **7:45 – 8:45 | Automated Test Suite**:
-  * Run `pytest backend/tests -v` in terminal; show 26 passing tests covering cutoff boundaries and edge cases.
-* **8:45 – 9:45 | Docker Containerization & Deployment Readiness**:
-  * Inspect `docker-compose.yml`, multi-stage Dockerfiles, and `vercel.json`.
-  * Wrap up with architecture strengths, maintainability, and clean separation of concerns.
+  * Explain temporal resolution bridging (half-hourly actuals to hourly forecasts).
+  * Show PyArrow Parquet storage and schema normalization.
+* **6:45 – 7:45 | API Design, Date Validation & Error Handling**:
+  * Inspect `routes.py`: demonstrate strict ISO date parsing (returning HTTP 400 for malformed, impossible, or reversed date ranges).
+  * Show explicit CORS origin handling and thread-safe caching.
+* **7:45 – 8:45 | Automated Test Suite (92 Tests)**:
+  * Run `pytest -v` live in terminal; show all 92 tests passing across cutoff logic, missing actual handling, metrics, and API boundaries.
+* **8:45 – 9:45 | Docker Containerization & Production Deployment**:
+  * Inspect `docker-compose.yml`, multi-stage Dockerfiles, and `.dockerignore` hygiene.
+  * Show verified live deployments on Vercel and Render.
+  * Conclude with architecture strengths, reliability, and maintainability.
 
 ---
 
 ## 13. AI Disclosure
 
 In accordance with transparent engineering practices and hiring guidelines:
-* **AI Tooling Used**: Antigravity AI Engineering Assistant (Gemini / Claude models) was utilized as an accelerated pair programmer for scaffolding boilerplate, generating test fixtures, styling Tailwind/Vanilla CSS design tokens, and drafting documentation.
-* **Engineering Ownership**: All architectural decisions, cutoff algorithms, timezone normalization logic, metric formulation, schema definitions, and validation checks were designed, inspected, and verified by the submitting engineer.
-* **Verification**: All 26 automated tests, data pipelines, API responses, and browser rendering states have been executed and verified locally.
+* **AI Tooling Used**: Antigravity AI Engineering Assistant (powered by Google DeepMind / Gemini and Anthropic Claude models) and OpenAI ChatGPT were utilized as pair programming and developer tooling assistants for scaffolding boilerplate, exploratory review, and drafting initial documentation outlines.
+* **Engineering Ownership**: All final architectural choices, decision-cutoff algorithms, timezone normalization logic, metric formulations, schema definitions, data-quality pipelines, and bug fixes were verified, debugged, and validated by the submitting engineer.
+* **Independent Verification**: All 92 automated tests, frontend builds, API routes, and container configurations have been executed and verified in the local development environment.
