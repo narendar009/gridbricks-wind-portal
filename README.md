@@ -346,49 +346,10 @@ tests/test_forecast_selector.py::TestExpectedTimelineAndMissingActuals::test_mis
 * **Provisional Cutoff Policy**: The 10:00 Europe/London D-1 cutoff is an operational application assumption reflecting typical utility day-ahead scheduling workflows, rather than a single statutory market rule. The backend fully supports configuring different hours and day offsets.
 * **Single Weather Provider Model**: The dataset relies entirely on Elexon's published forecasts. Future enhancements could ingest multi-model numerical weather prediction (NWP) ensembles (ECMWF, GFS, Met Office) to construct probabilistic confidence bands.
 
----
-
-## 12. 10-Minute Video Presentation Plan
-
-### Part 1: Customer-Facing Portal, Insights & Business Value (0:00 – 4:45)
-* **0:00 – 0:45 | The Business Context**:
-  * Introduce the UK electricity utility day-ahead procurement challenge.
-  * Explain why decision-time cutoff enforcement is necessary to prevent lookahead bias.
-* **0:45 – 1:45 | Dashboard KPI Scorecard & Bias Discovery**:
-  * Walk through the live portal interface.
-  * Highlight the **+1,840.3 MW mean over-forecasting bias** across January 2026.
-  * Discuss the 1.23x RMSE/MAE ratio indicating tail-risk volatility.
-* **1:45 – 2:45 | Interactive Time Series & Volume Trends**:
-  * Demonstrate zooming into high-volatility periods across January.
-  * Show actuals vs. day-ahead forecasts and error traces with responsive Recharts visualization.
-* **2:45 – 3:45 | Diurnal Profile & Top 20 Outliers**:
-  * Show the time-of-day chart: highlight how error variance peaks during the 16:00–19:00 afternoon ramp.
-  * Inspect the top 20 error table with exact publication timestamps.
-* **3:45 – 4:45 | Settlement Interval Audit Table**:
-  * Demonstrate pagination, sorting, status filtering (matched, missing actual, missing forecast), and date filtering.
-
-### Part 2: Technical Architecture, Methodology & Code Walkthrough (4:45 – 9:45)
-* **4:45 – 5:45 | Decision-Time Cutoff Engine (`forecast_selector.py`)**:
-  * Walk through the 10:00 London D-1 cutoff algorithm.
-  * Show how BST/GMT transitions are safely resolved and lookahead forecasts are excluded.
-  * Explain complete expected timeline generation (1,488 intervals) and left-joining of actuals.
-* **5:45 – 6:45 | Ingestion Pipeline & Parquet Storage**:
-  * Walk through `elexon_client.py` and `ingestion.py`.
-  * Explain temporal resolution bridging (half-hourly actuals to hourly forecasts).
-  * Show PyArrow Parquet storage and schema normalization.
-* **6:45 – 7:45 | API Design, Date Validation & Error Handling**:
-  * Inspect `routes.py`: demonstrate strict ISO date parsing (returning HTTP 400 for malformed, impossible, or reversed date ranges).
-  * Show explicit CORS origin handling and thread-safe caching.
-* **7:45 – 8:45 | Automated Test Suite (92 Tests)**:
-  * Run `pytest -v` live in terminal; show all 92 tests passing across cutoff logic, missing actual handling, metrics, and API boundaries.
-* **8:45 – 9:45 | Docker Containerization & Production Deployment**:
-  * Inspect `docker-compose.yml`, multi-stage Dockerfiles, and `.dockerignore` hygiene.
-  * Show verified live deployments on Vercel and Render.
-  * Conclude with architecture strengths, reliability, and maintainability.
 
 ---
 
-## 13. AI Disclosure
+## 12. AI Disclosure
 
 In accordance with transparent engineering practices and hiring guidelines:
 * **AI Tooling Used**: Antigravity AI Engineering Assistant (powered by Google DeepMind / Gemini and Anthropic Claude models) and OpenAI ChatGPT were utilized as pair programming and developer tooling assistants for scaffolding boilerplate, exploratory review, and drafting initial documentation outlines.
